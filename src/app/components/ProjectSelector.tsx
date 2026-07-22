@@ -48,13 +48,13 @@ function fuzzysearch(needle: string, haystack: string): boolean {
 
 export interface ProjectSelectorProps {
   selectedProject: string | null;
-  onSelect: (project: string | null) => void;
+  onProjectChange: (project: string) => void;
   isDisabled?: boolean;
 }
 
-export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
+const ProjectSelector: React.FC<ProjectSelectorProps> = ({
   selectedProject,
-  onSelect,
+  onProjectChange,
   isDisabled = false,
 }) => {
   const { projects, loading, error } = useProjects();
@@ -101,12 +101,12 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
   const handleSelect = useCallback(
     (_event: React.MouseEvent | undefined, itemId: string | number | undefined) => {
       if (itemId != null) {
-        onSelect(String(itemId));
+        onProjectChange(String(itemId));
       }
       setIsOpen(false);
       setFilterText('');
     },
-    [onSelect],
+    [onProjectChange],
   );
 
   const handleOpenChange = useCallback((open: boolean) => {
@@ -261,3 +261,5 @@ export const ProjectSelector: React.FC<ProjectSelectorProps> = ({
     />
   );
 };
+
+export default ProjectSelector;
