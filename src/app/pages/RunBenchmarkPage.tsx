@@ -17,7 +17,7 @@ import {
   Title,
 } from '@patternfly/react-core';
 import ProjectSelector from '~/app/components/ProjectSelector';
-import { submitBenchmarkJob, BenchmarkRunConfig, RESULTS_PVC_NAME } from '~/app/hooks/useBenchmarkJobs';
+import { submitBenchmarkJob, BenchmarkRunConfig } from '~/app/hooks/useBenchmarkJobs';
 
 const DEFAULT_DATA_CONFIG =
   '{"prompt_tokens":4096,"prompt_tokens_stdev":1024,"prompt_tokens_min":1024,"prompt_tokens_max":8192,"output_tokens":512,"output_tokens_stdev":256,"output_tokens_min":64,"output_tokens_max":1536}';
