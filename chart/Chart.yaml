@@ -1,0 +1,14 @@
+apiVersion: v2
+name: guidellm-benchmarker-chart
+description: A Helm chart for deploying the RHOAI Guidellm Benchmarker plugin
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - rhoai
+  - openshift-ai
+  - plugin
+  - guidellm-benchmarker
+home: https://github.com/rh-ai-community-plugins/guidellm-benchmarker
+sources:
+  - https://github.com/rh-ai-community-plugins/guidellm-benchmarker

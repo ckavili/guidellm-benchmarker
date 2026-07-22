@@ -1,0 +1,83 @@
+# --- Plugin identity (required) ---
+name: guidellm-benchmarker                    # [PLUGIN-SPECIFIC] unique plugin identifier (kebab-case)
+displayName: GuideLLM Benchmarker             # [PLUGIN-SPECIFIC] human-readable name
+description: Submit GuideLLM load-test jobs against LLM inference endpoints and visualize benchmark results (latency, TTFT, tokens/sec) from within the OpenShift AI dashboard.
+version: 0.1.0
+
+# --- Maintainer (required) ---
+maintainer:                          # [PLUGIN-SPECIFIC]
+  name: Guillaume Moutier                    # [PLUGIN-SPECIFIC] replace with maintainer's name
+  github: guimou        # [PLUGIN-SPECIFIC] replace with maintainer's GitHub handle
+
+# --- RHOAI compatibility (required) ---
+rhoai_compatibility:                 # [PLUGIN-SPECIFIC]
+  min_version: "3.3.0"
+  tested_versions: ["3.3.0", "3.4.2"]
+
+# --- Deployment (required) ---
+deployment_model: cluster-shared     # per-project | cluster-shared | both
+
+image:                               # [PLUGIN-SPECIFIC]
+  repository: quay.io/OWNER/guidellm-benchmarker
+  tag: "0.1.0"
+
+bff_image:                           # [PLUGIN-SPECIFIC] (optional — only if using BFF pattern)
+  repository: quay.io/OWNER/guidellm-benchmarker-bff
+  tag: "0.1.0"
+
+# --- Installation (required) ---
+install:
+  method: automatic                  # automatic | assisted | manual
+  helm:
+    chart_path: chart/
+    registry: oci://quay.io/OWNER/guidellm-benchmarker-chart  # [PLUGIN-SPECIFIC]
+  prerequisites: []
+  instructions: https://github.com/rh-ai-community-plugins/guidellm-benchmarker/blob/main/docs/deployment  # [PLUGIN-SPECIFIC]
+
+# --- Dashboard integration (required) ---
+remote:
+  type: module-federation
+  spec:
+    name: guidellmBenchmarker                 # [PLUGIN-SPECIFIC] Module Federation container name (camelCase)
+    scope: guidellmBenchmarker                # [PLUGIN-SPECIFIC] must match name above
+    # [PLUGIN-SPECIFIC] Update this URL to point to your deployed OpenShift route.
+    # The URL is cluster-specific and depends on the route created by the Helm chart or Ingress.
+    # Example: https://guidellm-benchmarker-mynamespace.apps.mycluster.example.com/remoteEntry.js
+    remoteEntry: https://<your-openshift-route>/remoteEntry.js  # [PLUGIN-SPECIFIC]
+    paths:
+      - type: route
+        path: /guidellm-benchmarker           # [PLUGIN-SPECIFIC] must match route prefix in extensions.ts
+        extensions:
+          - guidellmBenchmarker/extensions     # [PLUGIN-SPECIFIC] {scope}/extensions
+      - type: icon
+        path: guidellmBenchmarker/Icon         # [PLUGIN-SPECIFIC] {scope}/Icon
+
+# --- RBAC (required) ---
+# Job submission and listing use the dashboard's /api/k8s/ pass-through, which
+# forwards the end-user's own Bearer token. Users need the following permissions
+# in the target namespace (typically granted via an existing RoleBinding):
+#   batch/jobs: get, list, watch, create
+# The Helm chart creates a Role + RoleBinding scoped to the release namespace
+# for the plugin's own ServiceAccount (rbac.create: true in values.yaml).
+# No cluster-scoped roles are required.
+rbac:
+  required_roles:
+    - apiGroups: ["batch"]
+      resources: ["jobs", "jobs/status"]
+      verbs: ["get", "list", "watch", "create"]
+    - apiGroups: [""]
+      resources: ["persistentvolumeclaims", "configmaps", "services"]
+      verbs: ["get", "list", "create"]
+    - apiGroups: ["apps"]
+      resources: ["deployments"]
+      verbs: ["get", "list", "create"]
+    - apiGroups: ["route.openshift.io"]
+      resources: ["routes"]
+      verbs: ["get", "list", "create"]
+  cluster_roles: false
+
+# --- Support (optional) ---
+support:
+  repo: https://github.com/rh-ai-community-plugins/guidellm-benchmarker   # [PLUGIN-SPECIFIC]
+  docs: https://github.com/rh-ai-community-plugins/guidellm-benchmarker/tree/main/docs
+  issues: https://github.com/rh-ai-community-plugins/guidellm-benchmarker/issues

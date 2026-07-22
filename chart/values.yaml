@@ -1,0 +1,81 @@
+# Default values for guidellm-benchmarker.
+# This is a YAML-formatted file.
+
+image:
+  repository: quay.io/OWNER/guidellm-benchmarker
+  tag: ""
+  pullPolicy: IfNotPresent
+
+# Overrides .Chart.Name so deployed resources use the plugin name, not the
+# chart name (which has a -chart suffix to avoid OCI registry collisions).
+nameOverride: "guidellm-benchmarker"
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# RBAC: Role + RoleBinding granting the plugin's ServiceAccount list/watch/create
+# on batch/jobs in the release namespace. The dashboard's /api/k8s/ pass-through
+# uses the end-user's own token for cross-namespace operations, so this is optional
+# but recommended so operators can extend it for future server-side monitoring.
+rbac:
+  create: true
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /guidellm-benchmarker
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+securityContext:
+  runAsNonRoot: true
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# BFF (Backend For Frontend) service.
+# The BFF proxies result file requests to the per-namespace GuideLLM nginx viewer,
+# avoiding browser CORS restrictions. It makes no direct PVC or K8s API calls.
+bff:
+  enabled: true
+  image:
+    repository: quay.io/OWNER/guidellm-benchmarker-bff
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
