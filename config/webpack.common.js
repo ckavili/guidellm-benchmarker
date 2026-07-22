@@ -79,6 +79,10 @@ module.exports = {
           singleton: true,
           requiredVersion: '^6',
         },
+        '@patternfly/react-table': {
+          singleton: true,
+          requiredVersion: '^6',
+        },
         '@openshift/dynamic-plugin-sdk': {
           singleton: true,
           requiredVersion: '^5',

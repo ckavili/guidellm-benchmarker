@@ -15,16 +15,11 @@ import {
   Spinner,
   Split,
   SplitItem,
-  Table,
-  Tbody,
-  Td,
   Text,
   TextContent,
-  Th,
-  Thead,
   Title,
-  Tr,
 } from '@patternfly/react-core';
+import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
 import ProjectSelector from '~/app/components/ProjectSelector';
 import { useBenchmarkJobs, getJobPhase, BenchmarkJob } from '~/app/hooks/useBenchmarkJobs';
 import { useViewerRoute } from '~/app/hooks/useViewerRoute';
