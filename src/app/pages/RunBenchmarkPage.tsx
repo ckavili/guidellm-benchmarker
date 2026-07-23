@@ -77,6 +77,16 @@ const RunBenchmarkPage: React.FC = () => {
         `Job guidellm-agentmode-${runId} submitted to "${namespace}". ` +
           `Results viewer auto-provisioned — go to the Results page once the job completes.`,
       );
+      setTargetUrl('');
+      setModelName('');
+      setProcessorName('');
+      setRateValues('1,2,4,8,16');
+      setMaxSeconds('300');
+      setParallelism('1');
+      setDataConfig(DEFAULT_DATA_CONFIG);
+      setApiToken('fake');
+      setHfToken('');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Unknown error');
     } finally {

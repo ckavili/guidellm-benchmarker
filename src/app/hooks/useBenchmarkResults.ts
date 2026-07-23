@@ -39,15 +39,19 @@ export function useBenchmarkResultFiles(viewerUrl: string | null) {
     setError(null);
     const encoded = encodeURIComponent(viewerUrl);
     fetch(`/guidellm-benchmarker/api/results/files?viewerUrl=${encoded}`)
-      .then((res) => {
+      .then(async (res) => {
         if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        const ct = res.headers.get('content-type') ?? '';
+        if (!ct.includes('application/json')) {
+          throw new Error('Results not available yet — the job may still be running.');
+        }
         return res.json();
       })
       .then((data: ResultFile[]) => {
         setFiles(data);
         setLoading(false);
       })
-      .catch((e) => {
+      .catch((e: Error) => {
         setError(e.message);
         setLoading(false);
       });

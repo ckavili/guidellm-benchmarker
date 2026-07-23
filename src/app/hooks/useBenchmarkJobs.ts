@@ -132,7 +132,7 @@ export async function submitBenchmarkJob(config: BenchmarkRunConfig): Promise<vo
     `--target '${config.targetUrl}'`,
     `--model '${config.modelName}'`,
     `--processor '${config.processorName}'`,
-    `--backend-kwargs '{"api_key": "${config.apiToken || 'fake'}", "verify": false}'`,
+    `--backend-kwargs '{"verify": false}'`,
     `--data '${config.dataConfig}'`,
     `--rate-type '${config.rateType}'`,
     `--max-seconds '${config.maxSeconds}'`,
@@ -173,6 +173,7 @@ export async function submitBenchmarkJob(config: BenchmarkRunConfig): Promise<vo
               command: ['/bin/sh', '-c'],
               args: [args],
               env: [
+                { name: 'OPENAI_API_KEY', value: config.apiToken || 'fake' },
                 { name: 'HF_TOKEN', value: config.hfToken ?? '' },
                 { name: 'HOME', value: '/cache' },
                 { name: 'HF_HOME', value: '/cache/hf' },
