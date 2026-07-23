@@ -140,8 +140,9 @@ const ResultsPage: React.FC = () => {
     refresh: refreshRoute,
   } = useViewerRoute(namespace || null);
 
-  const { files, loading: filesLoading, error: filesError } = useBenchmarkResultFiles(viewerUrl);
+  const { files, loading: filesLoading, error: filesError } = useBenchmarkResultFiles(namespace || null, viewerUrl);
   const { data, loading: dataLoading, error: dataError } = useBenchmarkResultData(
+    namespace || null,
     viewerUrl,
     selectedFile,
   );

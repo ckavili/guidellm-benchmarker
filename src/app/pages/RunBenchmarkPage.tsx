@@ -19,7 +19,7 @@ import ProjectSelector from '~/app/components/ProjectSelector';
 import { submitBenchmarkJob, BenchmarkRunConfig } from '~/app/hooks/useBenchmarkJobs';
 
 const DEFAULT_DATA_CONFIG =
-  '{"prompt_tokens":4096,"prompt_tokens_stdev":1024,"prompt_tokens_min":1024,"prompt_tokens_max":8192,"output_tokens":512,"output_tokens_stdev":256,"output_tokens_min":64,"output_tokens_max":1536}';
+  '{"prompt_tokens":512,"prompt_tokens_stdev":128,"prompt_tokens_min":128,"prompt_tokens_max":1024,"output_tokens":128,"output_tokens_stdev":32,"output_tokens_min":32,"output_tokens_max":256}';
 
 function randomRunId(): string {
   return Math.random().toString(36).slice(2, 8);
@@ -203,13 +203,14 @@ const RunBenchmarkPage: React.FC = () => {
               value={maxSeconds}
               onChange={(_e, v) => setMaxSeconds(v)}
               isRequired
+              validated={parseInt(maxSeconds, 10) < 60 ? 'error' : 'default'}
             />
             <FormHelperText>
               <HelperText>
-                <HelperTextItem>
-                  How long GuideLLM sustains each concurrency level before moving to the next.
-                  Longer durations give more stable measurements. With 5 levels at 300 s each the
-                  total run takes ~25 minutes.
+                <HelperTextItem variant={parseInt(maxSeconds, 10) < 60 ? 'error' : 'default'}>
+                  {parseInt(maxSeconds, 10) < 60
+                    ? 'Minimum 60 seconds — values below 60 s cause GuideLLM to fail silently.'
+                    : 'How long GuideLLM sustains each concurrency level before moving to the next. With 5 levels at 300 s each the total run takes ~25 minutes.'}
                 </HelperTextItem>
               </HelperText>
             </FormHelperText>
@@ -242,7 +243,7 @@ const RunBenchmarkPage: React.FC = () => {
             <FormHelperText>
               <HelperText>
                 <HelperTextItem>
-                  Synthetic data profile with prompt/output token distributions, or path to a JSONL dataset on the PVC
+                  Synthetic prompt/output token distribution. Default is a small profile (512 prompt / 128 output tokens) suitable for most endpoints. Increase prompt_tokens for long-context benchmarks.
                 </HelperTextItem>
               </HelperText>
             </FormHelperText>
@@ -294,7 +295,7 @@ const RunBenchmarkPage: React.FC = () => {
             <Button
               variant="primary"
               type="submit"
-              isDisabled={submitting || !namespace || !targetUrl || !modelName || !processorName}
+              isDisabled={submitting || !namespace || !targetUrl || !modelName || !processorName || parseInt(maxSeconds, 10) < 60}
             >
               {submitting ? <><Spinner size="sm" /> Submitting…</> : 'Run Benchmark'}
             </Button>
