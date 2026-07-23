@@ -174,7 +174,9 @@ export async function submitBenchmarkJob(config: BenchmarkRunConfig): Promise<vo
               args: [args],
               env: [
                 { name: 'OPENAI_API_KEY', value: config.apiToken || 'fake' },
+                { name: 'GUIDELLM__OPENAI__API_KEY', value: config.apiToken || 'fake' },
                 { name: 'HF_TOKEN', value: config.hfToken ?? '' },
+                { name: 'HUGGING_FACE_HUB_TOKEN', value: config.hfToken ?? '' },
                 { name: 'HOME', value: '/cache' },
                 { name: 'HF_HOME', value: '/cache/hf' },
               ],
