@@ -11,8 +11,7 @@ import {
   PageSection,
   PageSectionVariants,
   Spinner,
-  Text,
-  TextContent,
+  Content,
   TextInput,
   Title,
 } from '@patternfly/react-core';
@@ -86,13 +85,13 @@ const RunBenchmarkPage: React.FC = () => {
   return (
     <>
       <PageSection variant={PageSectionVariants.light}>
-        <TextContent>
+        <Content>
           <Title headingLevel="h1">Run GuideLLM Benchmark</Title>
-          <Text>
+          <Content component="p">
             Submit a Kubernetes Job that runs GuideLLM against an LLM inference endpoint,
             sweeping the specified concurrency levels. Results are written to the shared PVC.
-          </Text>
-        </TextContent>
+          </Content>
+        </Content>
       </PageSection>
       <PageSection>
         {successMsg && (

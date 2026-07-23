@@ -15,8 +15,7 @@ import {
   Spinner,
   Split,
   SplitItem,
-  Text,
-  TextContent,
+  Content,
   Title,
 } from '@patternfly/react-core';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@patternfly/react-table';
@@ -150,13 +149,13 @@ const ResultsPage: React.FC = () => {
   return (
     <>
       <PageSection variant={PageSectionVariants.light}>
-        <TextContent>
+        <Content>
           <Title headingLevel="h1">Benchmark Results</Title>
-          <Text>
+          <Content component="p">
             Select a namespace to view submitted benchmark jobs and explore their metric results.
             The results viewer is provisioned automatically when you run your first benchmark.
-          </Text>
-        </TextContent>
+          </Content>
+        </Content>
       </PageSection>
 
       <PageSection>
