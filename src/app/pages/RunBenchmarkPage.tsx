@@ -64,7 +64,7 @@ const RunBenchmarkPage: React.FC = () => {
   // Endpoint fields
   const [namespace, setNamespace] = useState<string>('');
   const [targetUrl, setTargetUrl] = useState('');
-  const [apiToken, setApiToken] = useState('fake');
+  const [apiToken, setApiToken] = useState('');
   const [modelName, setModelName] = useState('');
   const [processorName, setProcessorName] = useState('');
 
@@ -157,7 +157,7 @@ const RunBenchmarkPage: React.FC = () => {
       // Reset form to full preset defaults
       applyPreset('full');
       setTargetUrl('');
-      setApiToken('fake');
+      setApiToken('');
       setModelName('');
       setProcessorName('');
       setRateValues(PRESET_RATES.full);
@@ -276,13 +276,14 @@ const RunBenchmarkPage: React.FC = () => {
               type="password"
               value={apiToken}
               onChange={(_e, v) => setApiToken(v)}
-              placeholder="fake"
+              placeholder="Enter your API token (or 'fake' for open endpoints)"
             />
             <FormHelperText>
               <HelperText>
                 <HelperTextItem>
                   Bearer token sent as <code>Authorization: Bearer &lt;token&gt;</code>.
-                  Use <code>fake</code> (the default) for endpoints that don&apos;t require authentication.
+                  Required for authenticated endpoints (e.g. LiteLLM). Leave as <code>fake</code> only
+                  for unauthenticated vLLM endpoints — using a wrong token causes all requests to fail with 401.
                 </HelperTextItem>
               </HelperText>
             </FormHelperText>
@@ -404,6 +405,8 @@ const RunBenchmarkPage: React.FC = () => {
                 <HelperTextItem>
                   Average number of tokens the model should generate per response.
                   More output tokens = longer requests = lower throughput at the same concurrency.
+                  For reasoning/thinking models, set this to 1024 or higher — the model spends
+                  many tokens on internal reasoning before producing visible output.
                 </HelperTextItem>
               </HelperText>
             </FormHelperText>
