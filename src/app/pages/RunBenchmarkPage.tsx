@@ -1,49 +1,126 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ActionGroup,
   Alert,
   Button,
+  Content,
+  ExpandableSection,
   Form,
   FormGroup,
   FormHelperText,
+  FormSelect,
+  FormSelectOption,
   HelperText,
   HelperTextItem,
   PageSection,
   PageSectionVariants,
   Spinner,
-  Content,
   TextInput,
   Title,
+  ToggleGroup,
+  ToggleGroupItem,
 } from '@patternfly/react-core';
 import ProjectSelector from '~/app/components/ProjectSelector';
 import { submitBenchmarkJob, BenchmarkRunConfig } from '~/app/hooks/useBenchmarkJobs';
-
-const DEFAULT_DATA_CONFIG =
-  '{"prompt_tokens":512,"prompt_tokens_stdev":128,"prompt_tokens_min":128,"prompt_tokens_max":1024,"output_tokens":128,"output_tokens_stdev":32,"output_tokens_min":32,"output_tokens_max":256}';
 
 function randomRunId(): string {
   return Math.random().toString(36).slice(2, 8);
 }
 
+type Preset = 'quick' | 'full' | 'custom';
+type Variability = 'low' | 'medium' | 'high';
+
+const PRESET_RATES: Record<Exclude<Preset, 'custom'>, string> = {
+  quick: '1,4',
+  full: '1,2,4,8,16',
+};
+const PRESET_SECONDS: Record<Exclude<Preset, 'custom'>, string> = {
+  quick: '60',
+  full: '300',
+};
+
+function buildDataConfig(promptTokens: string, outputTokens: string, variability: Variability): string {
+  const p = Math.max(64, parseInt(promptTokens, 10) || 512);
+  const o = Math.max(32, parseInt(outputTokens, 10) || 128);
+  const factor = variability === 'low' ? 0.1 : variability === 'medium' ? 0.25 : 0.5;
+  const ps = Math.round(p * factor);
+  const os = Math.round(o * factor);
+  return JSON.stringify({
+    prompt_tokens: p,
+    prompt_tokens_stdev: ps,
+    prompt_tokens_min: Math.max(32, p - 2 * ps),
+    prompt_tokens_max: p + 2 * ps,
+    output_tokens: o,
+    output_tokens_stdev: os,
+    output_tokens_min: Math.max(32, o - 2 * os),
+    output_tokens_max: o + 2 * os,
+  });
+}
+
 const RunBenchmarkPage: React.FC = () => {
+  // Preset
+  const [preset, setPreset] = useState<Preset>('full');
+
+  // Endpoint fields
   const [namespace, setNamespace] = useState<string>('');
   const [targetUrl, setTargetUrl] = useState('');
+  const [apiToken, setApiToken] = useState('fake');
   const [modelName, setModelName] = useState('');
   const [processorName, setProcessorName] = useState('');
-  const [rateValues, setRateValues] = useState('1,2,4,8,16');
-  const [maxSeconds, setMaxSeconds] = useState('300');
+
+  // Load profile fields
+  const [rateValues, setRateValues] = useState(PRESET_RATES.full);
+  const [maxSeconds, setMaxSeconds] = useState(PRESET_SECONDS.full);
+
+  // Data profile fields
+  const [promptTokens, setPromptTokens] = useState('512');
+  const [outputTokens, setOutputTokens] = useState('128');
+  const [variability, setVariability] = useState<Variability>('medium');
+
+  // Advanced fields
   const [parallelism, setParallelism] = useState('1');
-  const [dataConfig, setDataConfig] = useState(DEFAULT_DATA_CONFIG);
   const [guidellmImage, setGuidellmImage] = useState('ghcr.io/vllm-project/guidellm:v0.5.0');
-  const [apiToken, setApiToken] = useState('fake');
   const [hfToken, setHfToken] = useState('');
+  const [advancedExpanded, setAdvancedExpanded] = useState(false);
+
+  // UI state
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const dataConfig = useMemo(
+    () => buildDataConfig(promptTokens, outputTokens, variability),
+    [promptTokens, outputTokens, variability],
+  );
+
+  const estimatedMinutes = useMemo(() => {
+    const levels = rateValues.split(',').filter((v) => v.trim()).length;
+    const secs = parseInt(maxSeconds, 10) || 0;
+    return Math.round((levels * secs) / 60);
+  }, [rateValues, maxSeconds]);
+
+  const maxSecondsInt = parseInt(maxSeconds, 10);
+  const durationInvalid = maxSecondsInt < 60;
+
+  const applyPreset = (p: Exclude<Preset, 'custom'>) => {
+    setPreset(p);
+    setRateValues(PRESET_RATES[p]);
+    setMaxSeconds(PRESET_SECONDS[p]);
+  };
+
+  const handleRateChange = (_e: React.FormEvent, v: string) => {
+    setPreset('custom');
+    setRateValues(v);
+  };
+
+  const handleMaxSecondsChange = (_e: React.FormEvent, v: string) => {
+    setPreset('custom');
+    setMaxSeconds(v);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!namespace || !targetUrl || !modelName || !processorName) return;
+    if (!namespace || !targetUrl || !modelName || !processorName || durationInvalid) return;
 
     setSubmitting(true);
     setSuccessMsg(null);
@@ -75,16 +152,20 @@ const RunBenchmarkPage: React.FC = () => {
       await submitBenchmarkJob(config);
       setSuccessMsg(
         `Job guidellm-agentmode-${runId} submitted to "${namespace}". ` +
-          `Results viewer auto-provisioned — go to the Results page once the job completes.`,
+          `Go to the Results page once the job completes (~${estimatedMinutes} min).`,
       );
+      // Reset form
+      setPreset('full');
       setTargetUrl('');
+      setApiToken('fake');
       setModelName('');
       setProcessorName('');
-      setRateValues('1,2,4,8,16');
-      setMaxSeconds('300');
+      setRateValues(PRESET_RATES.full);
+      setMaxSeconds(PRESET_SECONDS.full);
+      setPromptTokens('512');
+      setOutputTokens('128');
+      setVariability('medium');
       setParallelism('1');
-      setDataConfig(DEFAULT_DATA_CONFIG);
-      setApiToken('fake');
       setHfToken('');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
@@ -94,6 +175,9 @@ const RunBenchmarkPage: React.FC = () => {
     }
   };
 
+  const canSubmit =
+    !submitting && !!namespace && !!targetUrl && !!modelName && !!processorName && !durationInvalid;
+
   return (
     <>
       <PageSection variant={PageSectionVariants.light}>
@@ -101,10 +185,11 @@ const RunBenchmarkPage: React.FC = () => {
           <Title headingLevel="h1">Run GuideLLM Benchmark</Title>
           <Content component="p">
             Submit a Kubernetes Job that runs GuideLLM against an LLM inference endpoint,
-            sweeping the specified concurrency levels. Results are written to the shared PVC.
+            sweeping the specified concurrency levels and measuring latency and throughput at each load.
           </Content>
         </Content>
       </PageSection>
+
       <PageSection>
         {successMsg && (
           <Alert
@@ -124,138 +209,70 @@ const RunBenchmarkPage: React.FC = () => {
             actionClose={<Button variant="plain" onClick={() => setErrorMsg(null)}>✕</Button>}
           />
         )}
+
         <Form onSubmit={handleSubmit} style={{ maxWidth: '720px' }}>
+
+          {/* ── Namespace ── */}
           <FormGroup label="Namespace" isRequired fieldId="namespace">
-            <ProjectSelector
-              selectedProject={namespace}
-              onProjectChange={setNamespace}
-            />
+            <ProjectSelector selectedProject={namespace} onProjectChange={setNamespace} />
+            <FormHelperText>
+              <HelperText><HelperTextItem>The OpenShift namespace where the benchmark Job will run</HelperTextItem></HelperText>
+            </FormHelperText>
           </FormGroup>
+
+          {/* ── Preset ── */}
+          <FormGroup label="Benchmark preset" fieldId="preset">
+            <ToggleGroup aria-label="Benchmark preset">
+              <ToggleGroupItem
+                text="Quick test"
+                isSelected={preset === 'quick'}
+                onChange={() => applyPreset('quick')}
+              />
+              <ToggleGroupItem
+                text="Full benchmark"
+                isSelected={preset === 'full'}
+                onChange={() => applyPreset('full')}
+              />
+              <ToggleGroupItem
+                text="Custom"
+                isSelected={preset === 'custom'}
+                onChange={() => setPreset('custom')}
+              />
+            </ToggleGroup>
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem>
+                  {preset === 'quick'
+                    ? 'Quick test — 2 concurrency levels × 60 s ≈ 2 min. Good for verifying connectivity and getting a rough idea of performance.'
+                    : preset === 'full'
+                    ? 'Full benchmark — 5 concurrency levels × 300 s ≈ 25 min. Produces a full latency/throughput curve.'
+                    : 'Custom — configure concurrency levels and duration below.'}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          </FormGroup>
+
+          {/* ── Endpoint section ── */}
+          <Title headingLevel="h2" size="md" style={{ marginTop: '0.5rem', marginBottom: '-0.25rem', color: '#6a6e73' }}>
+            Endpoint
+          </Title>
 
           <FormGroup label="Target URL" isRequired fieldId="targetUrl">
             <TextInput
               id="targetUrl"
               value={targetUrl}
               onChange={(_e, v) => setTargetUrl(v)}
-              placeholder="http://inference-gateway.apps.example.com/my-model"
-              isRequired
-            />
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem>URL of the LLMInferenceService via the inference gateway</HelperTextItem>
-              </HelperText>
-            </FormHelperText>
-          </FormGroup>
-
-          <FormGroup label="Model Name" isRequired fieldId="modelName">
-            <TextInput
-              id="modelName"
-              value={modelName}
-              onChange={(_e, v) => setModelName(v)}
-              placeholder="my-model"
-              isRequired
-            />
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem>Served model name as exposed by the endpoint (/v1/models)</HelperTextItem>
-              </HelperText>
-            </FormHelperText>
-          </FormGroup>
-
-          <FormGroup label="Processor / Tokenizer" isRequired fieldId="processorName">
-            <TextInput
-              id="processorName"
-              value={processorName}
-              onChange={(_e, v) => setProcessorName(v)}
-              placeholder="meta-llama/Llama-3.1-8B-Instruct"
-              isRequired
-            />
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem>HuggingFace tokenizer repo for the served model</HelperTextItem>
-              </HelperText>
-            </FormHelperText>
-          </FormGroup>
-
-          <FormGroup label="Concurrency Levels" isRequired fieldId="rateValues">
-            <TextInput
-              id="rateValues"
-              value={rateValues}
-              onChange={(_e, v) => setRateValues(v)}
-              placeholder="1,2,4,8,16"
+              placeholder="https://litellm-litemaas.apps.example.com"
               isRequired
             />
             <FormHelperText>
               <HelperText>
                 <HelperTextItem>
-                  Comma-separated list of simultaneous in-flight requests to test. GuideLLM runs
-                  each level in sequence and measures latency and throughput at each load, producing
-                  a curve. Start low (1–2) and go high (16–32) to find where the endpoint saturates.
+                  Base URL of the LLM inference endpoint — no trailing slash, no path suffix.
+                  GuideLLM appends <code>/v1/chat/completions</code> automatically.
                 </HelperTextItem>
               </HelperText>
             </FormHelperText>
-          </FormGroup>
-
-          <FormGroup label="Duration per level (seconds)" isRequired fieldId="maxSeconds">
-            <TextInput
-              id="maxSeconds"
-              type="number"
-              value={maxSeconds}
-              onChange={(_e, v) => setMaxSeconds(v)}
-              isRequired
-              validated={parseInt(maxSeconds, 10) < 60 ? 'error' : 'default'}
-            />
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem variant={parseInt(maxSeconds, 10) < 60 ? 'error' : 'default'}>
-                  {parseInt(maxSeconds, 10) < 60
-                    ? 'Minimum 60 seconds — values below 60 s cause GuideLLM to fail silently.'
-                    : 'How long GuideLLM sustains each concurrency level before moving to the next. With 5 levels at 300 s each the total run takes ~25 minutes.'}
-                </HelperTextItem>
-              </HelperText>
-            </FormHelperText>
-          </FormGroup>
-
-          <FormGroup label="Parallelism (load-generator pods)" isRequired fieldId="parallelism">
-            <TextInput
-              id="parallelism"
-              type="number"
-              value={parallelism}
-              onChange={(_e, v) => setParallelism(v)}
-              isRequired
-            />
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem>
-                  Prefer raising concurrency levels first; increase pods only when one pod&apos;s CPU saturates
-                </HelperTextItem>
-              </HelperText>
-            </FormHelperText>
-          </FormGroup>
-
-          <FormGroup label="Data Config (JSON)" isRequired fieldId="dataConfig">
-            <TextInput
-              id="dataConfig"
-              value={dataConfig}
-              onChange={(_e, v) => setDataConfig(v)}
-              isRequired
-            />
-            <FormHelperText>
-              <HelperText>
-                <HelperTextItem>
-                  Synthetic prompt/output token distribution. Default is a small profile (512 prompt / 128 output tokens) suitable for most endpoints. Increase prompt_tokens for long-context benchmarks.
-                </HelperTextItem>
-              </HelperText>
-            </FormHelperText>
-          </FormGroup>
-
-          <FormGroup label="GuideLLM Image" isRequired fieldId="guidellmImage">
-            <TextInput
-              id="guidellmImage"
-              value={guidellmImage}
-              onChange={(_e, v) => setGuidellmImage(v)}
-              isRequired
-            />
           </FormGroup>
 
           <FormGroup label="API Token" fieldId="apiToken">
@@ -269,35 +286,236 @@ const RunBenchmarkPage: React.FC = () => {
             <FormHelperText>
               <HelperText>
                 <HelperTextItem>
-                  Bearer token for the inference endpoint. Use &quot;fake&quot; (the default) for
-                  endpoints that don&apos;t require authentication.
+                  Bearer token sent as <code>Authorization: Bearer &lt;token&gt;</code>.
+                  Use <code>fake</code> (the default) for endpoints that don&apos;t require authentication.
                 </HelperTextItem>
               </HelperText>
             </FormHelperText>
           </FormGroup>
 
-          <FormGroup label="HuggingFace Token (optional)" fieldId="hfToken">
+          <FormGroup label="Model name" isRequired fieldId="modelName">
             <TextInput
-              id="hfToken"
-              type="password"
-              value={hfToken}
-              onChange={(_e, v) => setHfToken(v)}
-              placeholder="hf_..."
+              id="modelName"
+              value={modelName}
+              onChange={(_e, v) => setModelName(v)}
+              placeholder="Qwen3-35B-A3B"
+              isRequired
             />
             <FormHelperText>
               <HelperText>
-                <HelperTextItem>Required only for gated tokenizers; leave blank for public models</HelperTextItem>
+                <HelperTextItem>
+                  Must match exactly what the endpoint returns at <code>GET /v1/models</code>.
+                  Run <code>curl &lt;target-url&gt;/v1/models</code> to look it up.
+                </HelperTextItem>
               </HelperText>
             </FormHelperText>
           </FormGroup>
 
-          <ActionGroup>
+          <FormGroup label="Tokenizer (HuggingFace model ID)" isRequired fieldId="processorName">
+            <TextInput
+              id="processorName"
+              value={processorName}
+              onChange={(_e, v) => setProcessorName(v)}
+              placeholder="Qwen/Qwen3-35B-A3B"
+              isRequired
+            />
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem>
+                  HuggingFace repo of the tokenizer for the served model — used to count tokens accurately.
+                  Usually the same as the model&apos;s HuggingFace ID (e.g. <code>meta-llama/Llama-3.1-8B-Instruct</code>).
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          </FormGroup>
+
+          {/* ── Load profile section ── */}
+          <Title headingLevel="h2" size="md" style={{ marginTop: '0.5rem', marginBottom: '-0.25rem', color: '#6a6e73' }}>
+            Load profile
+          </Title>
+
+          <FormGroup label="Concurrency levels to sweep" isRequired fieldId="rateValues">
+            <TextInput
+              id="rateValues"
+              value={rateValues}
+              onChange={handleRateChange}
+              placeholder="1,2,4,8,16"
+              isRequired
+            />
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem>
+                  Comma-separated list of simultaneous in-flight requests. GuideLLM runs each
+                  level for the duration below and measures latency + throughput, building a
+                  performance curve. Fewer levels = faster run; more levels = richer curve.
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          </FormGroup>
+
+          <FormGroup label="Duration per level (seconds)" isRequired fieldId="maxSeconds">
+            <TextInput
+              id="maxSeconds"
+              type="number"
+              value={maxSeconds}
+              onChange={handleMaxSecondsChange}
+              isRequired
+              validated={durationInvalid ? 'error' : 'default'}
+            />
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem variant={durationInvalid ? 'error' : 'default'}>
+                  {durationInvalid
+                    ? 'Minimum 60 seconds — values below 60 s cause GuideLLM to fail silently.'
+                    : `How long GuideLLM sustains each concurrency level. Longer = more stable measurements. Estimated total: ~${estimatedMinutes} min.`}
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          </FormGroup>
+
+          {/* ── Data profile section ── */}
+          <Title headingLevel="h2" size="md" style={{ marginTop: '0.5rem', marginBottom: '-0.25rem', color: '#6a6e73' }}>
+            Request data profile
+          </Title>
+
+          <FormGroup label="Prompt tokens (average)" isRequired fieldId="promptTokens">
+            <TextInput
+              id="promptTokens"
+              type="number"
+              value={promptTokens}
+              onChange={(_e, v) => setPromptTokens(v)}
+              isRequired
+            />
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem>
+                  Average number of input tokens per request. Use a value representative of your
+                  real workload. Larger prompts stress memory bandwidth; start with 512 if unsure.
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          </FormGroup>
+
+          <FormGroup label="Output tokens (average)" isRequired fieldId="outputTokens">
+            <TextInput
+              id="outputTokens"
+              type="number"
+              value={outputTokens}
+              onChange={(_e, v) => setOutputTokens(v)}
+              isRequired
+            />
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem>
+                  Average number of tokens the model should generate per response.
+                  More output tokens = longer requests = lower throughput at the same concurrency.
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          </FormGroup>
+
+          <FormGroup label="Request variability" isRequired fieldId="variability">
+            <FormSelect
+              id="variability"
+              value={variability}
+              onChange={(_e, v) => setVariability(v as Variability)}
+              aria-label="Request variability"
+            >
+              <FormSelectOption value="low" label="Low — requests are nearly the same length" />
+              <FormSelectOption value="medium" label="Medium — realistic mix of short and long requests" />
+              <FormSelectOption value="high" label="High — wide spread, stress-tests scheduling" />
+            </FormSelect>
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem>
+                  Controls how much the prompt and output lengths vary request-to-request.
+                  Medium is a good default for most workloads.
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
+          </FormGroup>
+
+          {/* ── Advanced (collapsed) ── */}
+          <ExpandableSection
+            toggleText={advancedExpanded ? 'Hide advanced options' : 'Show advanced options'}
+            isExpanded={advancedExpanded}
+            onToggle={(_e, expanded) => setAdvancedExpanded(expanded)}
+            style={{ marginTop: '0.5rem' }}
+          >
+            <Form style={{ paddingTop: '0.5rem' }}>
+              <FormGroup label="HuggingFace Token (optional)" fieldId="hfToken">
+                <TextInput
+                  id="hfToken"
+                  type="password"
+                  value={hfToken}
+                  onChange={(_e, v) => setHfToken(v)}
+                  placeholder="hf_..."
+                />
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem>Required only for gated tokenizers; leave blank for public models</HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              </FormGroup>
+
+              <FormGroup label="Parallelism (load-generator pods)" isRequired fieldId="parallelism">
+                <TextInput
+                  id="parallelism"
+                  type="number"
+                  value={parallelism}
+                  onChange={(_e, v) => setParallelism(v)}
+                  isRequired
+                />
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem>
+                      Number of parallel load-generator pods. Raise concurrency levels first;
+                      increase pods only when a single pod&apos;s CPU saturates.
+                    </HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              </FormGroup>
+
+              <FormGroup label="GuideLLM image" isRequired fieldId="guidellmImage">
+                <TextInput
+                  id="guidellmImage"
+                  value={guidellmImage}
+                  onChange={(_e, v) => setGuidellmImage(v)}
+                  isRequired
+                />
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem>Container image used to run GuideLLM. Change only if you need a specific version.</HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              </FormGroup>
+
+              <FormGroup label="Data config (JSON)" fieldId="dataConfigPreview">
+                <TextInput
+                  id="dataConfigPreview"
+                  value={dataConfig}
+                  isDisabled
+                  aria-label="Generated data config"
+                />
+                <FormHelperText>
+                  <HelperText>
+                    <HelperTextItem>
+                      Generated from the prompt/output token and variability fields above.
+                      This value is passed directly to GuideLLM.
+                    </HelperTextItem>
+                  </HelperText>
+                </FormHelperText>
+              </FormGroup>
+            </Form>
+          </ExpandableSection>
+
+          <ActionGroup style={{ marginTop: '1rem' }}>
             <Button
               variant="primary"
               type="submit"
-              isDisabled={submitting || !namespace || !targetUrl || !modelName || !processorName || parseInt(maxSeconds, 10) < 60}
+              isDisabled={!canSubmit}
             >
-              {submitting ? <><Spinner size="sm" /> Submitting…</> : 'Run Benchmark'}
+              {submitting ? <><Spinner size="sm" /> Submitting…</> : `Run benchmark (~${estimatedMinutes} min)`}
             </Button>
           </ActionGroup>
         </Form>

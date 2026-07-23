@@ -60,16 +60,28 @@ function proxyGet(
   });
 }
 
-// GET /api/results/files?viewerUrl=<url>
-// Proxies to <viewerUrl>/api/files/ and returns only .json file entries.
-export function listResultFilesHandler(req: Request, res: Response): void {
+// Resolve the upstream base URL for the results viewer.
+// Prefers the internal cluster Service URL (namespace param) to avoid hairpin
+// routing through the OpenShift router. Falls back to the explicit viewerUrl.
+function resolveUpstreamBase(req: Request): string | null {
+  const namespace = req.query.namespace as string | undefined;
+  if (namespace && /^[a-z0-9-]+$/.test(namespace)) {
+    return `http://guidellm-results-viewer.${namespace}.svc.cluster.local:8080`;
+  }
   const viewerUrl = validateViewerUrl(req.query.viewerUrl);
-  if (!viewerUrl) {
-    res.status(400).json({ error: 'Missing or invalid viewerUrl query parameter (must be http/https)' });
+  return viewerUrl ? viewerUrl.toString().replace(/\/$/, '') : null;
+}
+
+// GET /api/results/files?namespace=<ns>  (or ?viewerUrl=<url> fallback)
+// Proxies to the nginx /api/files/ endpoint and returns only .json entries.
+export function listResultFilesHandler(req: Request, res: Response): void {
+  const base = resolveUpstreamBase(req);
+  if (!base) {
+    res.status(400).json({ error: 'Provide namespace or a valid viewerUrl query parameter' });
     return;
   }
 
-  const upstream = new URL('/api/files/', viewerUrl).toString();
+  const upstream = `${base}/api/files/`;
 
   proxyGet(upstream, res, (body) => {
     const items: Array<Record<string, unknown>> = JSON.parse(body);
@@ -80,12 +92,12 @@ export function listResultFilesHandler(req: Request, res: Response): void {
   });
 }
 
-// GET /api/results/file?viewerUrl=<url>&file=<filename>
-// Proxies to <viewerUrl>/<filename> and returns the raw JSON.
+// GET /api/results/file?namespace=<ns>&file=<filename>  (or ?viewerUrl=<url> fallback)
+// Proxies to the nginx static file and returns the raw JSON.
 export function getResultFileHandler(req: Request, res: Response): void {
-  const viewerUrl = validateViewerUrl(req.query.viewerUrl);
-  if (!viewerUrl) {
-    res.status(400).json({ error: 'Missing or invalid viewerUrl query parameter (must be http/https)' });
+  const base = resolveUpstreamBase(req);
+  if (!base) {
+    res.status(400).json({ error: 'Provide namespace or a valid viewerUrl query parameter' });
     return;
   }
 
@@ -95,6 +107,6 @@ export function getResultFileHandler(req: Request, res: Response): void {
     return;
   }
 
-  const upstream = new URL(encodeURIComponent(file), viewerUrl).toString();
+  const upstream = `${base}/${encodeURIComponent(file)}`;
   proxyGet(upstream, res);
 }
