@@ -7,20 +7,39 @@ const LABELS = { app: 'guidellm-results-viewer' };
 async function applyResource(
   apiPath: string,
   body: Record<string, unknown>,
+  { forceUpdate = false }: { forceUpdate?: boolean } = {},
 ): Promise<void> {
   const res = await fetch(`/api/k8s${apiPath}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  // 409 = already exists — that's fine
-  if (!res.ok && res.status !== 409) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(
-      (err as { message?: string }).message ||
-        `Failed to create resource at ${apiPath}: ${res.status}`,
-    );
+
+  if (res.ok || res.status === 409) {
+    // If forceUpdate, overwrite with a PUT regardless of whether it existed
+    if (forceUpdate && res.status === 409) {
+      const name = (body.metadata as { name: string }).name;
+      const putRes = await fetch(`/api/k8s${apiPath}/${name}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!putRes.ok) {
+        const err = await putRes.json().catch(() => ({}));
+        throw new Error(
+          (err as { message?: string }).message ||
+            `Failed to update resource at ${apiPath}/${name}: ${putRes.status}`,
+        );
+      }
+    }
+    return;
   }
+
+  const err = await res.json().catch(() => ({}));
+  throw new Error(
+    (err as { message?: string }).message ||
+      `Failed to create resource at ${apiPath}: ${res.status}`,
+  );
 }
 
 const NGINX_CONF = `server {
@@ -127,28 +146,37 @@ export async function provisionViewer(namespace: string, pvcName: string): Promi
     kind: 'PersistentVolumeClaim',
     metadata: { name: pvcName, namespace, labels: LABELS },
     spec: {
-      accessModes: ['ReadWriteOnce'],
+      accessModes: ['ReadWriteMany'],
       resources: { requests: { storage: '10Gi' } },
     },
   });
 
-  // 2. nginx config ConfigMap
-  await applyResource(`/api/v1/namespaces/${namespace}/configmaps`, {
-    apiVersion: 'v1',
-    kind: 'ConfigMap',
-    metadata: { name: 'guidellm-results-nginx-conf', namespace, labels: LABELS },
-    data: { 'default.conf': NGINX_CONF },
-  });
+  // 2. nginx config ConfigMap — always update so nginx config changes take effect
+  await applyResource(
+    `/api/v1/namespaces/${namespace}/configmaps`,
+    {
+      apiVersion: 'v1',
+      kind: 'ConfigMap',
+      metadata: { name: 'guidellm-results-nginx-conf', namespace, labels: LABELS },
+      data: { 'default.conf': NGINX_CONF },
+    },
+    { forceUpdate: true },
+  );
 
-  // 3. Dashboard HTML ConfigMap
-  await applyResource(`/api/v1/namespaces/${namespace}/configmaps`, {
-    apiVersion: 'v1',
-    kind: 'ConfigMap',
-    metadata: { name: 'guidellm-dashboard', namespace, labels: LABELS },
-    data: { 'index.html': DASHBOARD_HTML },
-  });
+  // 3. Dashboard HTML ConfigMap — always update
+  await applyResource(
+    `/api/v1/namespaces/${namespace}/configmaps`,
+    {
+      apiVersion: 'v1',
+      kind: 'ConfigMap',
+      metadata: { name: 'guidellm-dashboard', namespace, labels: LABELS },
+      data: { 'index.html': DASHBOARD_HTML },
+    },
+    { forceUpdate: true },
+  );
 
-  // 4. Deployment
+  // 4. Deployment — annotate with config hash so pod restarts when nginx config changes
+  const configHash = btoa(NGINX_CONF).slice(0, 8);
   await applyResource(`/apis/apps/v1/namespaces/${namespace}/deployments`, {
     apiVersion: 'apps/v1',
     kind: 'Deployment',
@@ -157,7 +185,7 @@ export async function provisionViewer(namespace: string, pvcName: string): Promi
       replicas: 1,
       selector: { matchLabels: LABELS },
       template: {
-        metadata: { labels: LABELS },
+        metadata: { labels: LABELS, annotations: { 'guidellm/nginx-conf-hash': configHash } },
         spec: {
           containers: [
             {

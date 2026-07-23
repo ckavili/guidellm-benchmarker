@@ -27,7 +27,7 @@ function randomRunId(): string {
   return Math.random().toString(36).slice(2, 8);
 }
 
-type Preset = 'quick' | 'full' | 'custom';
+type Preset = 'quick' | 'full' | null;
 type Variability = 'low' | 'medium' | 'high';
 
 const PRESET_RATES: Record<Exclude<Preset, 'custom'>, string> = {
@@ -102,19 +102,19 @@ const RunBenchmarkPage: React.FC = () => {
   const maxSecondsInt = parseInt(maxSeconds, 10);
   const durationInvalid = maxSecondsInt < 60;
 
-  const applyPreset = (p: Exclude<Preset, 'custom'>) => {
+  const applyPreset = (p: Exclude<Preset, null>) => {
     setPreset(p);
     setRateValues(PRESET_RATES[p]);
     setMaxSeconds(PRESET_SECONDS[p]);
   };
 
   const handleRateChange = (_e: React.FormEvent, v: string) => {
-    setPreset('custom');
+    setPreset(null);
     setRateValues(v);
   };
 
   const handleMaxSecondsChange = (_e: React.FormEvent, v: string) => {
-    setPreset('custom');
+    setPreset(null);
     setMaxSeconds(v);
   };
 
@@ -154,8 +154,8 @@ const RunBenchmarkPage: React.FC = () => {
         `Job guidellm-agentmode-${runId} submitted to "${namespace}". ` +
           `Go to the Results page once the job completes (~${estimatedMinutes} min).`,
       );
-      // Reset form
-      setPreset('full');
+      // Reset form to full preset defaults
+      applyPreset('full');
       setTargetUrl('');
       setApiToken('fake');
       setModelName('');
@@ -224,29 +224,24 @@ const RunBenchmarkPage: React.FC = () => {
           <FormGroup label="Benchmark preset" fieldId="preset">
             <ToggleGroup aria-label="Benchmark preset">
               <ToggleGroupItem
-                text="Quick test"
+                text="Quick test (~2 min)"
                 isSelected={preset === 'quick'}
                 onChange={() => applyPreset('quick')}
               />
               <ToggleGroupItem
-                text="Full benchmark"
+                text="Full benchmark (~25 min)"
                 isSelected={preset === 'full'}
                 onChange={() => applyPreset('full')}
-              />
-              <ToggleGroupItem
-                text="Custom"
-                isSelected={preset === 'custom'}
-                onChange={() => setPreset('custom')}
               />
             </ToggleGroup>
             <FormHelperText>
               <HelperText>
                 <HelperTextItem>
                   {preset === 'quick'
-                    ? 'Quick test — 2 concurrency levels × 60 s ≈ 2 min. Good for verifying connectivity and getting a rough idea of performance.'
+                    ? '2 concurrency levels (1, 4) × 60 s each. Good for a quick connectivity check and ballpark numbers.'
                     : preset === 'full'
-                    ? 'Full benchmark — 5 concurrency levels × 300 s ≈ 25 min. Produces a full latency/throughput curve.'
-                    : 'Custom — configure concurrency levels and duration below.'}
+                    ? '5 concurrency levels (1, 2, 4, 8, 16) × 300 s each. Produces a full latency/throughput curve.'
+                    : 'Custom values set below — click a preset to reset.'}
                 </HelperTextItem>
               </HelperText>
             </FormHelperText>
