@@ -35,6 +35,7 @@ const RunBenchmarkPage: React.FC = () => {
   const [parallelism, setParallelism] = useState('1');
   const [dataConfig, setDataConfig] = useState(DEFAULT_DATA_CONFIG);
   const [guidellmImage, setGuidellmImage] = useState('ghcr.io/vllm-project/guidellm:v0.5.0');
+  const [apiToken, setApiToken] = useState('fake');
   const [hfToken, setHfToken] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -61,6 +62,7 @@ const RunBenchmarkPage: React.FC = () => {
       dataConfig,
       rateType: 'concurrent',
       guidellmImage,
+      apiToken: apiToken || undefined,
       hfToken: hfToken || undefined,
       backoffLimit: '1',
       loadgenCpu: '2',
@@ -175,7 +177,11 @@ const RunBenchmarkPage: React.FC = () => {
             />
             <FormHelperText>
               <HelperText>
-                <HelperTextItem>Comma-separated list of concurrent sessions per pod to sweep</HelperTextItem>
+                <HelperTextItem>
+                  Comma-separated list of simultaneous in-flight requests to test. GuideLLM runs
+                  each level in sequence and measures latency and throughput at each load, producing
+                  a curve. Start low (1–2) and go high (16–32) to find where the endpoint saturates.
+                </HelperTextItem>
               </HelperText>
             </FormHelperText>
           </FormGroup>
@@ -188,6 +194,15 @@ const RunBenchmarkPage: React.FC = () => {
               onChange={(_e, v) => setMaxSeconds(v)}
               isRequired
             />
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem>
+                  How long GuideLLM sustains each concurrency level before moving to the next.
+                  Longer durations give more stable measurements. With 5 levels at 300 s each the
+                  total run takes ~25 minutes.
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
           </FormGroup>
 
           <FormGroup label="Parallelism (load-generator pods)" isRequired fieldId="parallelism">
@@ -230,6 +245,24 @@ const RunBenchmarkPage: React.FC = () => {
               onChange={(_e, v) => setGuidellmImage(v)}
               isRequired
             />
+          </FormGroup>
+
+          <FormGroup label="API Token" fieldId="apiToken">
+            <TextInput
+              id="apiToken"
+              type="password"
+              value={apiToken}
+              onChange={(_e, v) => setApiToken(v)}
+              placeholder="fake"
+            />
+            <FormHelperText>
+              <HelperText>
+                <HelperTextItem>
+                  Bearer token for the inference endpoint. Use &quot;fake&quot; (the default) for
+                  endpoints that don&apos;t require authentication.
+                </HelperTextItem>
+              </HelperText>
+            </FormHelperText>
           </FormGroup>
 
           <FormGroup label="HuggingFace Token (optional)" fieldId="hfToken">

@@ -104,6 +104,7 @@ export type BenchmarkRunConfig = {
   dataConfig: string;
   rateType: string;
   guidellmImage: string;
+  apiToken?: string;
   hfToken?: string;
   backoffLimit: string;
   loadgenCpu: string;
@@ -131,7 +132,7 @@ export async function submitBenchmarkJob(config: BenchmarkRunConfig): Promise<vo
     `--target '${config.targetUrl}'`,
     `--model '${config.modelName}'`,
     `--processor '${config.processorName}'`,
-    `--backend-kwargs '{"verify": false}'`,
+    `--backend-kwargs '{"api_key": "${config.apiToken || 'fake'}", "verify": false}'`,
     `--data '${config.dataConfig}'`,
     `--rate-type '${config.rateType}'`,
     `--max-seconds '${config.maxSeconds}'`,
