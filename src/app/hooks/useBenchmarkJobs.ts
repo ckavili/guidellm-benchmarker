@@ -132,7 +132,7 @@ export async function submitBenchmarkJob(config: BenchmarkRunConfig): Promise<vo
     `--target '${config.targetUrl}'`,
     `--model '${config.modelName}'`,
     `--processor '${config.processorName}'`,
-    `--backend-kwargs '{"verify": false}'`,
+    `--backend-kwargs '{"verify": false, "skip_validation": true}'`,
     `--data '${config.dataConfig}'`,
     `--rate-type '${config.rateType}'`,
     `--max-seconds '${config.maxSeconds}'`,
