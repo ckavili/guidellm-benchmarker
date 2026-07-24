@@ -130,6 +130,7 @@ export async function submitBenchmarkJob(config: BenchmarkRunConfig): Promise<vo
     `api_key=${config.apiToken || 'fake'}`,
     'verify=false',
     'http2=false',
+    'validate_backend=false',
   ].join(',');
 
   // One --profile flag per concurrency level
