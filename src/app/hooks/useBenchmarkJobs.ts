@@ -177,6 +177,19 @@ export async function submitBenchmarkJob(config: BenchmarkRunConfig): Promise<vo
         },
         spec: {
           restartPolicy: 'Never',
+          // Co-locate with the viewer pod so both can mount the RWO PVC on the same node
+          affinity: {
+            podAffinity: {
+              requiredDuringSchedulingIgnoredDuringExecution: [
+                {
+                  labelSelector: {
+                    matchLabels: { app: 'guidellm-results-viewer' },
+                  },
+                  topologyKey: 'kubernetes.io/hostname',
+                },
+              ],
+            },
+          },
           containers: [
             {
               name: 'guidellm',
