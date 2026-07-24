@@ -13,9 +13,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// Routes registered under both path prefixes:
+// - /api/... used in local dev (webpack proxy rewrites /guidellm-benchmarker/api → /api)
+// - /guidellm-benchmarker/api/... used in production (dashboard proxyService with pathRewrite: "")
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+app.get('/guidellm-benchmarker/api/health', (_req, res) => res.json({ status: 'ok' }));
 app.get('/api/results/files', listResultFilesHandler);
+app.get('/guidellm-benchmarker/api/results/files', listResultFilesHandler);
 app.get('/api/results/file', getResultFileHandler);
+app.get('/guidellm-benchmarker/api/results/file', getResultFileHandler);
 
 app.listen(PORT, () => {
   try {
