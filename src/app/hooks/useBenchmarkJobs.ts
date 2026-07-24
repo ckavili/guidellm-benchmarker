@@ -139,7 +139,8 @@ export async function submitBenchmarkJob(config: BenchmarkRunConfig): Promise<vo
     .map((v) => `--profile kind=concurrent,streams=${v.trim()}`)
     .join(' ');
 
-  const outBase = `/results/agentmode-${config.runId}-p\${JOB_COMPLETION_INDEX}`;
+  // JOB_COMPLETION_INDEX must be outside single-quoted strings so the shell expands it
+  const outBase = `/results/agentmode-${config.runId}-p$JOB_COMPLETION_INDEX`;
   const args = [
     'exec guidellm run',
     `--backend '${backend}'`,
@@ -147,8 +148,8 @@ export async function submitBenchmarkJob(config: BenchmarkRunConfig): Promise<vo
     `--data '${config.dataConfig}'`,
     profileArgs,
     `--constraint 'kind=max_duration,seconds=${config.maxSeconds}'`,
-    `--output 'kind=json,path=${outBase}.json'`,
-    `--output 'kind=csv,path=${outBase}.csv'`,
+    `--output kind=json,path=${outBase}.json`,
+    `--output kind=csv,path=${outBase}.csv`,
   ].join(' ');
 
   const job = {
