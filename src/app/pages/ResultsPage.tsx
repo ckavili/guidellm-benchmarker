@@ -232,7 +232,7 @@ const ResultsPage: React.FC = () => {
         {routeError && (
           <Alert variant="danger" title={`Could not discover results viewer: ${routeError}`} isInline style={{ marginBottom: '1rem' }} />
         )}
-        {filesError && (
+        {filesError && !viewerUrl && (
           <Alert
             variant={filesError.includes('not available yet') ? 'info' : 'danger'}
             title={filesError}
