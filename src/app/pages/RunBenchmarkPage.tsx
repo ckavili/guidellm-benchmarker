@@ -45,16 +45,18 @@ function buildDataConfig(promptTokens: string, outputTokens: string, variability
   const factor = variability === 'low' ? 0.1 : variability === 'medium' ? 0.25 : 0.5;
   const ps = Math.round(p * factor);
   const os = Math.round(o * factor);
-  return JSON.stringify({
-    prompt_tokens: p,
-    prompt_tokens_stdev: ps,
-    prompt_tokens_min: Math.max(32, p - 2 * ps),
-    prompt_tokens_max: p + 2 * ps,
-    output_tokens: o,
-    output_tokens_stdev: os,
-    output_tokens_min: Math.max(32, o - 2 * os),
-    output_tokens_max: o + 2 * os,
-  });
+  const parts = [
+    `kind=synthetic_text`,
+    `prompt_tokens=${p}`,
+    `prompt_tokens_stdev=${ps}`,
+    `prompt_tokens_min=${Math.max(32, p - 2 * ps)}`,
+    `prompt_tokens_max=${p + 2 * ps}`,
+    `output_tokens=${o}`,
+    `output_tokens_stdev=${os}`,
+    `output_tokens_min=${Math.max(32, o - 2 * os)}`,
+    `output_tokens_max=${o + 2 * os}`,
+  ];
+  return parts.join(',');
 }
 
 const RunBenchmarkPage: React.FC = () => {
@@ -79,7 +81,7 @@ const RunBenchmarkPage: React.FC = () => {
 
   // Advanced fields
   const [parallelism, setParallelism] = useState('1');
-  const [guidellmImage, setGuidellmImage] = useState('ghcr.io/vllm-project/guidellm:v0.5.0');
+  const [guidellmImage, setGuidellmImage] = useState('ghcr.io/vllm-project/guidellm:v0.7.2');
   const [hfToken, setHfToken] = useState('');
   const [advancedExpanded, setAdvancedExpanded] = useState(false);
 

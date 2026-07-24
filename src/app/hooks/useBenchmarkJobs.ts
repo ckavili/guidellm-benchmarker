@@ -122,23 +122,32 @@ export async function submitBenchmarkJob(config: BenchmarkRunConfig): Promise<vo
 
   const parallelism = parseInt(config.parallelism, 10) || 1;
   const backoffLimit = parseInt(config.backoffLimit, 10) || 1;
-  const rateValues = config.rateValues
-    .split(',')
-    .map((v) => v.trim())
-    .join(',');
+  // v0.7.2 CLI: api_key is now a first-class --backend param (auth bug fixed)
+  const backend = [
+    'kind=openai_http',
+    `target=${config.targetUrl}`,
+    `model=${config.modelName}`,
+    `api_key=${config.apiToken || 'fake'}`,
+    'verify=false',
+    'http2=false',
+  ].join(',');
 
+  // One --profile flag per concurrency level
+  const profileArgs = config.rateValues
+    .split(',')
+    .map((v) => `--profile kind=concurrent,streams=${v.trim()}`)
+    .join(' ');
+
+  const outBase = `/results/agentmode-${config.runId}-p\${JOB_COMPLETION_INDEX}`;
   const args = [
-    'exec guidellm benchmark run',
-    `--target '${config.targetUrl}'`,
-    `--model '${config.modelName}'`,
-    `--processor '${config.processorName}'`,
-    `--backend-kwargs '{"verify": false, "http2": false, "validate_backend": false, "api_key": "${config.apiToken || 'fake'}"}'`,
+    'exec guidellm run',
+    `--backend '${backend}'`,
+    `--tokenizer 'kind=huggingface_auto,model=${config.processorName}'`,
     `--data '${config.dataConfig}'`,
-    `--rate-type '${config.rateType}'`,
-    `--max-seconds '${config.maxSeconds}'`,
-    `--rate '${rateValues}'`,
-    '--output-dir /results',
-    `--outputs "agentmode-${config.runId}-p\${JOB_COMPLETION_INDEX}.json,agentmode-${config.runId}-p\${JOB_COMPLETION_INDEX}.csv"`,
+    profileArgs,
+    `--constraint 'kind=max_duration,seconds=${config.maxSeconds}'`,
+    `--output 'kind=json,path=${outBase}.json'`,
+    `--output 'kind=csv,path=${outBase}.csv'`,
   ].join(' ');
 
   const job = {
@@ -173,14 +182,8 @@ export async function submitBenchmarkJob(config: BenchmarkRunConfig): Promise<vo
               command: ['/bin/sh', '-c'],
               args: [args],
               env: [
-                { name: 'OPENAI_API_KEY', value: config.apiToken || 'fake' },
-                { name: 'GUIDELLM__OPENAI__API_KEY', value: config.apiToken || 'fake' },
                 { name: 'HF_TOKEN', value: config.hfToken ?? '' },
                 { name: 'HUGGING_FACE_HUB_TOKEN', value: config.hfToken ?? '' },
-                { name: 'GUIDELLM__LOGGING__CONSOLE_LOG_LEVEL', value: 'DEBUG' },
-                { name: 'GUIDELLM__LOGGING__LOG_FILE', value: `/results/debug-${config.runId}-p$(JOB_COMPLETION_INDEX).log` },
-                { name: 'GUIDELLM__LOGGING__LOG_FILE_LEVEL', value: 'DEBUG' },
-                { name: 'PYTHONUNBUFFERED', value: '1' },
                 { name: 'HOME', value: '/cache' },
                 { name: 'HF_HOME', value: '/cache/hf' },
               ],

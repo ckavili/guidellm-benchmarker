@@ -146,7 +146,7 @@ export async function provisionViewer(namespace: string, pvcName: string): Promi
     kind: 'PersistentVolumeClaim',
     metadata: { name: pvcName, namespace, labels: LABELS },
     spec: {
-      accessModes: ['ReadWriteMany'],
+      accessModes: ['ReadWriteOnce'],
       resources: { requests: { storage: '10Gi' } },
     },
   });
