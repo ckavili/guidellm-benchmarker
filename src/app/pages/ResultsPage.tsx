@@ -265,6 +265,20 @@ const ResultsPage: React.FC = () => {
         {routeLoading && <Spinner />}
 
         {viewerUrl && namespace && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <a href={`${viewerUrl}/dashboard/`} target="_blank" rel="noreferrer"
+              style={{ fontSize: '0.875rem', color: '#0066cc' }}>
+              Open full dashboard ↗
+            </a>
+            <iframe
+              src={`${viewerUrl}/dashboard/`}
+              title="GuideLLM Metrics Dashboard"
+              style={{ width: '100%', height: '600px', border: '1px solid #d2d2d2', borderRadius: '4px', marginTop: '0.5rem' }}
+            />
+          </div>
+        )}
+
+        {viewerUrl && namespace && (
           <FormGroup
             label="Result file"
             fieldId="result-file-select"
