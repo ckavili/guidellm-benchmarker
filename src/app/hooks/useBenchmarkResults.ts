@@ -39,9 +39,10 @@ export function useBenchmarkResultFiles(namespace: string | null, viewerUrl: str
     setLoading(true);
     setError(null);
 
-    const params = namespace
-      ? `namespace=${encodeURIComponent(namespace)}`
-      : `viewerUrl=${encodeURIComponent(viewerUrl!)}`;
+    // Prefer direct viewer URL (browser → Route) over BFF proxy (dashboard proxyService unreliable for community plugins)
+    const params = viewerUrl
+      ? `viewerUrl=${encodeURIComponent(viewerUrl)}`
+      : `namespace=${encodeURIComponent(namespace!)}`;
 
     fetch(`/guidellm-benchmarker/api/results/files?${params}`)
       .then(async (res) => {
@@ -78,9 +79,9 @@ export function useBenchmarkResultData(namespace: string | null, viewerUrl: stri
     setLoading(true);
     setError(null);
 
-    const params = namespace
-      ? `namespace=${encodeURIComponent(namespace)}&file=${encodeURIComponent(filename)}`
-      : `viewerUrl=${encodeURIComponent(viewerUrl!)}&file=${encodeURIComponent(filename)}`;
+    const params = viewerUrl
+      ? `viewerUrl=${encodeURIComponent(viewerUrl)}&file=${encodeURIComponent(filename)}`
+      : `namespace=${encodeURIComponent(namespace!)}&file=${encodeURIComponent(filename)}`;
 
     fetch(`/guidellm-benchmarker/api/results/file?${params}`)
       .then((res) => {
